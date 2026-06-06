@@ -20,7 +20,7 @@ pub fn pamtester(
         writeln!(contents, "{line} {}", module.display()).unwrap();
     }
     std::fs::write(test_dir.path().join(svc), contents).unwrap();
-    let mut child = Command::new("bwrap")
+    let result = Command::new("bwrap")
         .args(["--bind", "/", "/"])
         .args(["--bind", &test_dir.path().to_string_lossy(), "/etc/pam.d"])
         .args(["--dev", "/dev"])
@@ -28,8 +28,16 @@ pub fn pamtester(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+        .spawn();
+    let mut child = match result {
+        Ok(child) => child,
+        Err(e) => {
+            panic!(
+                "These tests require 'bwrap' from the bubblewrap package: {}",
+                e
+            );
+        }
+    };
     // Write stdin and close it so the child sees EOF.
     child.stdin.take().unwrap().write_all(stdin).unwrap();
     child.wait_with_output().unwrap()
